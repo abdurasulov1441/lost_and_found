@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
 import 'package:lost_and_find/home.dart';
+import 'package:lost_and_find/services/auth_cheker.dart';
 import 'package:lottie/lottie.dart';
 import 'package:lost_and_find/services/auth_google.dart';
 
@@ -17,10 +17,10 @@ class _LoginPageState extends State<LoginPage> {
   Future<void> _login() async {
     final user = await _authService.signInWithGoogle();
     if (user != null) {
-      Navigator.push(
+      Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => HomePage(),
+          builder: (context) => AuthChecker(),
         ),
       );
     } else {

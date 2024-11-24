@@ -18,12 +18,15 @@ class _AddLostPageState extends State<AddLostPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _priceController = TextEditingController();
 
   String? _selectedCategory;
   String? _selectedRegion;
   List<String> _regions = [];
   List<String> _categories = [];
   final List<File?> _images = [null, null, null];
+
+  bool _showPriceField = false; // Toggle for price input field
 
   @override
   void initState() {
@@ -77,11 +80,11 @@ class _AddLostPageState extends State<AddLostPage> {
         _selectedCategory != null &&
         _selectedRegion != null) {
       try {
-        // Получение текущего пользователя
+        // Get the current user
         final user = FirebaseAuth.instance.currentUser;
         final userEmail = user?.email ?? 'No email';
 
-        // Отправка изображений на сервер
+        // Upload images to the server
         List<String> uploadedImageUrls = [];
         for (var image in _images) {
           if (image != null) {
@@ -92,7 +95,21 @@ class _AddLostPageState extends State<AddLostPage> {
           }
         }
 
-        // Сохранение данных в Firestore
+        // Retrieve and increment the sequential id from the 'numbers' collection
+        final numberDoc = FirebaseFirestore.instance
+            .collection('numbers')
+            .doc('lostitems_count');
+        final numberSnapshot = await numberDoc.get();
+
+        int currentId = 1; // Default to 1 if the document doesn't exist
+        if (numberSnapshot.exists && numberSnapshot.data() != null) {
+          currentId = numberSnapshot.data()!['current'] ?? 1;
+        }
+
+        // Increment the sequence in Firestore
+        await numberDoc.set({'current': currentId + 1});
+
+        // Save data to Firestore with status and id
         await FirebaseFirestore.instance.collection('lostitems').add({
           'name': _nameController.text,
           'date': _dateController.text,
@@ -102,6 +119,9 @@ class _AddLostPageState extends State<AddLostPage> {
           'images': uploadedImageUrls,
           'email': userEmail,
           'createdAt': Timestamp.now(),
+          'id': currentId, // Sequential id
+          'status': 'inactive', // Default status
+          if (_showPriceField) 'price': _priceController.text, // Optional price
         });
 
         ScaffoldMessenger.of(context).showSnackBar(
@@ -332,6 +352,26 @@ class _AddLostPageState extends State<AddLostPage> {
                   return null;
                 },
               ),
+              const SizedBox(height: 20),
+              const Text(
+                'Narxni kiritish (ixtiyoriy)',
+                style: TextStyle(fontFamily: 'Poppins', fontSize: 16),
+              ),
+              SwitchListTile(
+                title: const Text('Narx qo‘shish'),
+                value: _showPriceField,
+                onChanged: (value) {
+                  setState(() {
+                    _showPriceField = value;
+                  });
+                },
+              ),
+              if (_showPriceField)
+                TextFormField(
+                  controller: _priceController,
+                  keyboardType: TextInputType.number,
+                  decoration: _inputDecoration('Narxni kiriting'),
+                ),
               const SizedBox(height: 20),
               const Text(
                 'Rasmlarni qo‘shish',

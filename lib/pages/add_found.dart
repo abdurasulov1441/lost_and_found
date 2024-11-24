@@ -18,12 +18,15 @@ class _AddFoundPageState extends State<AddFoundPage> {
   final TextEditingController _nameController = TextEditingController();
   final TextEditingController _dateController = TextEditingController();
   final TextEditingController _addressController = TextEditingController();
+  final TextEditingController _amountController =
+      TextEditingController(); // For the optional reward
 
+  bool _isRewardEnabled = false; // Toggle for the reward field
   String? _selectedCategory;
   String? _selectedRegion;
   List<String> _regions = [];
   List<String> _categories = [];
-  final List<File?> _images = [null, null, null];
+  final List<File?> _images = [null, null, null]; // For uploaded images
 
   @override
   void initState() {
@@ -77,11 +80,21 @@ class _AddFoundPageState extends State<AddFoundPage> {
         _selectedCategory != null &&
         _selectedRegion != null) {
       try {
-        // Получение текущего пользователя
+        // Get the current user
         final user = FirebaseAuth.instance.currentUser;
         final userEmail = user?.email ?? 'No email';
 
-        // Отправка изображений на сервер
+        // Fetch the current index from the `number` collection
+        final numberDoc =
+            FirebaseFirestore.instance.collection('number').doc('foundItems');
+        final numberSnapshot = await numberDoc.get();
+
+        int currentId = 1; // Default starting index
+        if (numberSnapshot.exists) {
+          currentId = numberSnapshot['currentId'] as int;
+        }
+
+        // Upload images to the server
         List<String> uploadedImageUrls = [];
         for (var image in _images) {
           if (image != null) {
@@ -92,17 +105,25 @@ class _AddFoundPageState extends State<AddFoundPage> {
           }
         }
 
-        // Сохранение данных в Firestore
+        // Save the item data to Firestore
         await FirebaseFirestore.instance.collection('found').add({
+          'id': currentId, // Add the indexed ID
           'name': _nameController.text,
           'date': _dateController.text,
           'category': _selectedCategory,
           'region': _selectedRegion,
           'address': _addressController.text,
           'images': uploadedImageUrls,
-          'email': userEmail, // Добавление email пользователя
-          'createdAt': Timestamp.now(), // Для отслеживания времени добавления
+          'email': userEmail,
+          'status': 'inactive', // Add status as inactive
+          'reward': _isRewardEnabled
+              ? _amountController.text
+              : null, // Optional reward
+          'createdAt': Timestamp.now(), // Timestamp for tracking
         });
+
+        // Increment the index in the `number` collection
+        await numberDoc.set({'currentId': currentId + 1});
 
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Ma’lumot saqlandi!')),
@@ -132,7 +153,7 @@ class _AddFoundPageState extends State<AddFoundPage> {
       if (response.statusCode == 200) {
         final responseBody = await response.stream.bytesToString();
         print('Image uploaded: $responseBody');
-        return responseBody; // URL изображения
+        return responseBody; // URL of the uploaded image
       } else {
         print('Image upload failed: ${response.statusCode}');
       }
@@ -140,83 +161,6 @@ class _AddFoundPageState extends State<AddFoundPage> {
       print('Xatolik suratni yuklashda: $e');
     }
     return null;
-  }
-
-  void _showCategoryBottomSheet() {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (BuildContext context) {
-        return SingleChildScrollView(
-          child: Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Text(
-                  'Kategoriyani tanlang',
-                  style: TextStyle(
-                    fontFamily: 'Poppins',
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                ListView.builder(
-                  shrinkWrap: true,
-                  itemCount: _categories.length,
-                  itemBuilder: (context, index) {
-                    final category = _categories[index];
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedCategory = category;
-                        });
-                        Navigator.pop(context);
-                      },
-                      child: Container(
-                        width: double.infinity, // Полная ширина
-                        margin: const EdgeInsets.symmetric(vertical: 8.0),
-                        padding: const EdgeInsets.symmetric(
-                            vertical: 15.0, horizontal: 20.0),
-                        decoration: BoxDecoration(
-                          color: _selectedCategory == category
-                              ? const Color.fromARGB(255, 19, 195, 169)
-                              : Colors.grey.shade200,
-                          borderRadius: BorderRadius.circular(15),
-                          border: Border.all(
-                            color: _selectedCategory == category
-                                ? const Color.fromARGB(255, 19, 195, 169)
-                                : Colors.grey,
-                          ),
-                        ),
-                        child: Text(
-                          category,
-                          textAlign: TextAlign.center,
-                          style: TextStyle(
-                            fontFamily: 'Poppins',
-                            fontSize: 14,
-                            color: _selectedCategory == category
-                                ? Colors.white
-                                : Colors.black,
-                            fontWeight: FontWeight.bold,
-                          ),
-                          maxLines: 2, // Максимум 2 строки
-                          overflow:
-                              TextOverflow.ellipsis, // Перенос длинного текста
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        );
-      },
-    );
   }
 
   @override
@@ -366,6 +310,30 @@ class _AddFoundPageState extends State<AddFoundPage> {
                 }),
               ),
               const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  const Text(
+                    'Mukofotni taklif qilish:',
+                    style: TextStyle(fontFamily: 'Poppins', fontSize: 16),
+                  ),
+                  Switch(
+                    value: _isRewardEnabled,
+                    onChanged: (value) {
+                      setState(() {
+                        _isRewardEnabled = value;
+                      });
+                    },
+                  ),
+                ],
+              ),
+              if (_isRewardEnabled)
+                TextFormField(
+                  controller: _amountController,
+                  decoration: _inputDecoration('Mukofot summasi (ixtiyoriy)'),
+                  keyboardType: TextInputType.number,
+                ),
+              const SizedBox(height: 20),
               ElevatedButton(
                 onPressed: _submitData,
                 style: ElevatedButton.styleFrom(
@@ -383,6 +351,82 @@ class _AddFoundPageState extends State<AddFoundPage> {
           ),
         ),
       ),
+    );
+  }
+
+  void _showCategoryBottomSheet() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+      ),
+      builder: (BuildContext context) {
+        return SingleChildScrollView(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Kategoriyani tanlang',
+                  style: TextStyle(
+                    fontFamily: 'Poppins',
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                ListView.builder(
+                  shrinkWrap: true,
+                  itemCount: _categories.length,
+                  itemBuilder: (context, index) {
+                    final category = _categories[index];
+                    return GestureDetector(
+                      onTap: () {
+                        setState(() {
+                          _selectedCategory = category;
+                        });
+                        Navigator.pop(context); // Close the bottom sheet
+                      },
+                      child: Container(
+                        width: double.infinity,
+                        margin: const EdgeInsets.symmetric(vertical: 8.0),
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 15.0, horizontal: 20.0),
+                        decoration: BoxDecoration(
+                          color: _selectedCategory == category
+                              ? const Color.fromARGB(255, 19, 195, 169)
+                              : Colors.grey.shade200,
+                          borderRadius: BorderRadius.circular(15),
+                          border: Border.all(
+                            color: _selectedCategory == category
+                                ? const Color.fromARGB(255, 19, 195, 169)
+                                : Colors.grey,
+                          ),
+                        ),
+                        child: Text(
+                          category,
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontFamily: 'Poppins',
+                            fontSize: 14,
+                            color: _selectedCategory == category
+                                ? Colors.white
+                                : Colors.black,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          maxLines: 2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
