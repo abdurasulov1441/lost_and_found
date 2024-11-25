@@ -9,10 +9,25 @@ class ChatDetailPage extends StatelessWidget {
   final TextEditingController _messageController = TextEditingController();
 
   ChatDetailPage({
-    Key? key,
+    super.key,
     required this.chatId,
     required this.otherUserEmail,
-  }) : super(key: key);
+  });
+
+  Future<void> _markMessagesAsRead(String currentUserEmail) async {
+    final messagesQuery = FirebaseFirestore.instance
+        .collection('chats')
+        .doc(chatId)
+        .collection('messages')
+        .where('sender', isEqualTo: otherUserEmail)
+        .where('status', isEqualTo: 'sent');
+
+    final unreadMessages = await messagesQuery.get();
+
+    for (var message in unreadMessages.docs) {
+      await message.reference.update({'status': 'read'});
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -45,8 +60,7 @@ class ChatDetailPage extends StatelessWidget {
                   fontSize: 16,
                   color: Colors.white,
                 ),
-                overflow: TextOverflow
-                    .ellipsis, // Adds ellipsis if the text is too long
+                overflow: TextOverflow.ellipsis,
               ),
             ),
           ],
@@ -70,6 +84,13 @@ class ChatDetailPage extends StatelessWidget {
 
                 final messages = snapshot.data!.docs;
 
+                // Mark incoming messages as "read"
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (currentUserEmail != null) {
+                    _markMessagesAsRead(currentUserEmail);
+                  }
+                });
+
                 return ListView.builder(
                   reverse: true,
                   itemCount: messages.length,
@@ -82,6 +103,19 @@ class ChatDetailPage extends StatelessWidget {
                     final time = timestamp != null
                         ? DateFormat('HH:mm').format(timestamp.toDate())
                         : '';
+
+                    // Determine the message status
+                    final status = message['status'] ?? 'sent';
+                    IconData? statusIcon;
+                    if (isCurrentUser) {
+                      if (status == 'sent') {
+                        statusIcon = Icons.check;
+                      } else if (status == 'delivered') {
+                        statusIcon = Icons.done_all;
+                      } else if (status == 'read') {
+                        statusIcon = Icons.done_all;
+                      }
+                    }
 
                     return Align(
                       alignment: isCurrentUser
@@ -112,14 +146,31 @@ class ChatDetailPage extends StatelessWidget {
                               ),
                             ),
                             const SizedBox(height: 5),
-                            Text(
-                              time,
-                              style: TextStyle(
-                                fontSize: 10,
-                                color: isCurrentUser
-                                    ? Colors.white70
-                                    : Colors.black54,
-                              ),
+                            Row(
+                              mainAxisSize: MainAxisSize.min,
+                              mainAxisAlignment: MainAxisAlignment.end,
+                              children: [
+                                Text(
+                                  time,
+                                  style: TextStyle(
+                                    fontSize: 10,
+                                    color: isCurrentUser
+                                        ? Colors.white70
+                                        : Colors.black54,
+                                  ),
+                                ),
+                                if (statusIcon != null)
+                                  Padding(
+                                    padding: const EdgeInsets.only(left: 5),
+                                    child: Icon(
+                                      statusIcon,
+                                      size: 14,
+                                      color: status == 'read'
+                                          ? Colors.blue
+                                          : Colors.white,
+                                    ),
+                                  ),
+                              ],
                             ),
                           ],
                         ),
@@ -159,8 +210,9 @@ class ChatDetailPage extends StatelessWidget {
                         'text': text,
                         'sender': currentUserEmail,
                         'timestamp': FieldValue.serverTimestamp(),
+                        'status': 'sent',
                       });
-                      _messageController.clear(); // Clear the input field
+                      _messageController.clear();
                     }
                   },
                 ),

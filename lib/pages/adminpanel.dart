@@ -5,7 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:lost_and_find/pages/login.dart';
 
 class AdminPanel extends StatelessWidget {
-  const AdminPanel({Key? key}) : super(key: key);
+  const AdminPanel({super.key});
 
   Future<void> _updateStatus(
       String collection, String docId, String newStatus) async {
@@ -25,7 +25,7 @@ class AdminPanel extends StatelessWidget {
       Navigator.push(
         context,
         MaterialPageRoute(
-          builder: (context) => LoginPage(),
+          builder: (context) => const LoginPage(),
         ),
       );
     } catch (e) {

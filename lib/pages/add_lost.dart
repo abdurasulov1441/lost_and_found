@@ -6,7 +6,7 @@ import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
 
 class AddLostPage extends StatefulWidget {
-  const AddLostPage({Key? key}) : super(key: key);
+  const AddLostPage({super.key});
 
   @override
   State<AddLostPage> createState() => _AddLostPageState();
@@ -120,8 +120,9 @@ class _AddLostPageState extends State<AddLostPage> {
           'email': userEmail,
           'createdAt': Timestamp.now(),
           'id': currentId, // Sequential id
-          'status': 'inactive', // Default status
-          if (_showPriceField) 'price': _priceController.text, // Optional price
+          'status': 'active', // Default status
+          if (_showPriceField)
+            'reward': _priceController.text, // Optional price
         });
 
         ScaffoldMessenger.of(context).showSnackBar(

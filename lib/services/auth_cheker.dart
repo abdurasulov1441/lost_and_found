@@ -6,7 +6,7 @@ import 'package:lost_and_find/pages/adminpanel.dart';
 import 'package:lost_and_find/pages/login.dart';
 
 class AuthChecker extends StatelessWidget {
-  const AuthChecker({Key? key}) : super(key: key);
+  const AuthChecker({super.key});
 
   Future<bool> _isAdmin(String email) async {
     try {

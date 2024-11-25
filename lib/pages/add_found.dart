@@ -6,7 +6,7 @@ import 'dart:io';
 import 'package:http/http.dart' as http;
 
 class AddFoundPage extends StatefulWidget {
-  const AddFoundPage({Key? key}) : super(key: key);
+  const AddFoundPage({super.key});
 
   @override
   State<AddFoundPage> createState() => _AddFoundPageState();
@@ -115,7 +115,7 @@ class _AddFoundPageState extends State<AddFoundPage> {
           'address': _addressController.text,
           'images': uploadedImageUrls,
           'email': userEmail,
-          'status': 'inactive', // Add status as inactive
+          'status': 'active', // Add status as inactive
           'reward': _isRewardEnabled
               ? _amountController.text
               : null, // Optional reward

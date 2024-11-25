@@ -20,7 +20,7 @@ class _LoginPageState extends State<LoginPage> {
       Navigator.pushReplacement(
         context,
         MaterialPageRoute(
-          builder: (context) => AuthChecker(),
+          builder: (context) => const AuthChecker(),
         ),
       );
     } else {
@@ -50,7 +50,7 @@ class _LoginPageState extends State<LoginPage> {
                   bottomRight: Radius.circular(40),
                 ),
               ),
-              child: Center(
+              child: const Center(
                 child: Text(
                   'L&F UZB',
                   style: TextStyle(

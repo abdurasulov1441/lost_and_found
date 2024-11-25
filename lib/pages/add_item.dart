@@ -3,7 +3,7 @@ import 'package:lost_and_find/pages/add_found.dart';
 import 'package:lost_and_find/pages/add_lost.dart';
 
 class AddItemSelectionPage extends StatelessWidget {
-  const AddItemSelectionPage({Key? key}) : super(key: key);
+  const AddItemSelectionPage({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -13,7 +13,7 @@ class AddItemSelectionPage extends StatelessWidget {
             onPressed: () {
               Navigator.pop(context);
             },
-            icon: Icon(
+            icon: const Icon(
               Icons.arrow_back,
               color: Colors.white,
             )),
@@ -33,7 +33,7 @@ class AddItemSelectionPage extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            SizedBox(
+            const SizedBox(
               height: 50,
             ),
             const Text(

@@ -6,7 +6,7 @@ import 'dart:convert';
 import 'package:lost_and_find/pages/chat_detail.dart';
 
 class FoundItemsPage extends StatefulWidget {
-  const FoundItemsPage({Key? key}) : super(key: key);
+  const FoundItemsPage({super.key});
 
   @override
   State<FoundItemsPage> createState() => _FoundItemsPageState();
@@ -103,7 +103,7 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                           value: category,
                           child: Text(category),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged: (value) {
                       setState(() {
@@ -128,7 +128,7 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                           value: region,
                           child: Text(region),
                         );
-                      }).toList(),
+                      }),
                     ],
                     onChanged: (value) {
                       setState(() {
@@ -197,25 +197,7 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                     FirebaseAuth.instance.currentUser?.email;
                 var items = snapshot.data!.docs;
 
-                // Exclude items that belong to the current user
-                items = items.where((item) {
-                  return item['email'] != currentUserEmail;
-                }).toList();
-
-                if (items.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      'Sizning e\'lonlaringizdan boshqa e\'lonlar mavjud emas',
-                      style: TextStyle(
-                        fontFamily: 'Poppins',
-                        fontSize: 16,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                  );
-                }
-
-                // Apply additional filters if needed
+                // Apply filters if needed
                 if (selectedCategory != null) {
                   items = items.where((item) {
                     return item['category'] == selectedCategory;
@@ -239,7 +221,9 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                   itemCount: items.length,
                   itemBuilder: (context, index) {
                     final item = items[index];
-                    return _buildItemCard(context, item);
+                    final isOwnListing = item['email'] == currentUserEmail;
+
+                    return _buildItemCard(context, item, isOwnListing);
                   },
                 );
               },
@@ -250,7 +234,8 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
     );
   }
 
-  Widget _buildItemCard(BuildContext context, QueryDocumentSnapshot item) {
+  Widget _buildItemCard(
+      BuildContext context, QueryDocumentSnapshot item, bool isOwnListing) {
     List<String> images = [];
     if (item['images'] != null) {
       images = List<String>.from(item['images'].map((image) {
@@ -264,32 +249,26 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
     }
 
     return GestureDetector(
-      onTap: () async {
-        final currentUserEmail = FirebaseAuth.instance.currentUser?.email;
-        final itemUserEmail = item['email'];
+      onTap: isOwnListing
+          ? null // Disable tap for own listings
+          : () async {
+              final chatId = await _createOrGetChat(
+                FirebaseAuth.instance.currentUser!.email!,
+                item['email'],
+              );
 
-        if (currentUserEmail == null || itemUserEmail == null) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Ошибка при открытии чата')),
-          );
-          return;
-        }
-
-        // Create or get chat
-        final chatId = await _createOrGetChat(currentUserEmail, itemUserEmail);
-
-        // Navigate to chat detail page
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (context) => ChatDetailPage(
-              chatId: chatId,
-              otherUserEmail: itemUserEmail,
-            ),
-          ),
-        );
-      },
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => ChatDetailPage(
+                    chatId: chatId,
+                    otherUserEmail: item['email'],
+                  ),
+                ),
+              );
+            },
       child: Card(
+        color: isOwnListing ? Colors.blue.shade50 : Colors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(15),
         ),
@@ -300,7 +279,7 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
           children: [
             if (images.isNotEmpty)
               SizedBox(
-                height: 200,
+                height: 250, // Fixed height for the image area
                 width: double.infinity,
                 child: PageView.builder(
                   itemCount: images.length,
@@ -312,8 +291,22 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                       ),
                       child: Image.network(
                         imageUrl,
-                        fit: BoxFit.cover,
+                        fit: BoxFit
+                            .contain, // Ensures the whole image is visible
                         width: double.infinity,
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) {
+                            return child;
+                          }
+                          return Center(
+                            child: CircularProgressIndicator(
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      (loadingProgress.expectedTotalBytes ?? 1)
+                                  : null,
+                            ),
+                          );
+                        },
                         errorBuilder: (context, error, stackTrace) {
                           return Container(
                             color: Colors.grey.shade200,
@@ -332,7 +325,16 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    item['name'] ?? 'Nomi mavjud emas',
+                    'ID: ${item['id'] ?? 'Нет ID'}',
+                    style: const TextStyle(
+                      fontFamily: 'Poppins',
+                      fontSize: 16,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  const SizedBox(height: 5),
+                  Text(
+                    item['name'] ?? 'Название отсутствует',
                     style: const TextStyle(
                       fontFamily: 'Poppins',
                       fontSize: 18,
@@ -342,10 +344,10 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                   const SizedBox(height: 5),
                   Row(
                     children: [
-                      const Icon(Icons.numbers, size: 16, color: Colors.grey),
+                      const Icon(Icons.category, size: 16, color: Colors.grey),
                       const SizedBox(width: 5),
                       Text(
-                        'ID: ${item['id'] ?? 'ID mavjud emas'}',
+                        'Категория: ${item['category'] ?? 'Не указана'}',
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
@@ -361,38 +363,7 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                           size: 16, color: Colors.grey),
                       const SizedBox(width: 5),
                       Text(
-                        'Mukofot: ${item['reward'] ?? 'Mukofot mavjud emas'}',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      const Icon(Icons.calendar_today,
-                          size: 16, color: Colors.grey),
-                      const SizedBox(width: 5),
-                      Text(
-                        item['date'] ?? 'Sana mavjud emas',
-                        style: const TextStyle(
-                          fontFamily: 'Poppins',
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 5),
-                  Row(
-                    children: [
-                      const Icon(Icons.category, size: 16, color: Colors.grey),
-                      const SizedBox(width: 5),
-                      Text(
-                        item['category'] ?? 'Kategoriya mavjud emas',
+                        'Награда: ${item['reward'] ?? 'Не указана'}',
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
@@ -408,7 +379,7 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                           size: 16, color: Colors.grey),
                       const SizedBox(width: 5),
                       Text(
-                        item['region'] ?? 'Joylashuv mavjud emas',
+                        'Регион: ${item['region'] ?? 'Не указан'}',
                         style: const TextStyle(
                           fontFamily: 'Poppins',
                           fontSize: 14,
@@ -418,23 +389,36 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
                     ],
                   ),
                   const SizedBox(height: 5),
-                  if (item['address'] != null)
-                    Row(
-                      children: [
-                        const Icon(Icons.home, size: 16, color: Colors.grey),
-                        const SizedBox(width: 5),
-                        Flexible(
-                          child: Text(
-                            item['address'],
-                            style: const TextStyle(
-                              fontFamily: 'Poppins',
-                              fontSize: 14,
-                              color: Colors.grey,
-                            ),
-                          ),
+                  Row(
+                    children: [
+                      const Icon(Icons.home, size: 16, color: Colors.grey),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Адрес: ${item['address'] ?? 'Не указан'}',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 14,
+                          color: Colors.grey,
                         ),
-                      ],
-                    ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 5),
+                  Row(
+                    children: [
+                      const Icon(Icons.calendar_today,
+                          size: 16, color: Colors.grey),
+                      const SizedBox(width: 5),
+                      Text(
+                        'Дата: ${item['date'] ?? 'Не указана'}',
+                        style: const TextStyle(
+                          fontFamily: 'Poppins',
+                          fontSize: 14,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
@@ -448,32 +432,21 @@ class _FoundItemsPageState extends State<FoundItemsPage> {
       String currentUserEmail, String otherUserEmail) async {
     final chatCollection = FirebaseFirestore.instance.collection('chats');
 
-    try {
-      // Поиск существующего чата
-      final querySnapshot = await chatCollection
-          .where('users', arrayContains: currentUserEmail)
-          .get();
+    final querySnapshot = await chatCollection
+        .where('users', arrayContains: currentUserEmail)
+        .get();
 
-      // Проверка на наличие документов
-      if (querySnapshot.docs.isNotEmpty) {
-        for (var doc in querySnapshot.docs) {
-          final users = doc['users'] as List;
-          if (users.contains(otherUserEmail)) {
-            return doc.id; // Возвращаем id существующего чата
-          }
-        }
+    for (var doc in querySnapshot.docs) {
+      if ((doc['users'] as List).contains(otherUserEmail)) {
+        return doc.id;
       }
-
-      // Если чат не найден, создаем новый
-      final newChat = await chatCollection.add({
-        'users': [currentUserEmail, otherUserEmail],
-        'createdAt': FieldValue.serverTimestamp(),
-      });
-
-      return newChat.id; // Возвращаем id нового чата
-    } catch (e) {
-      print('Ошибка при создании или поиске чата: $e');
-      throw Exception('Не удалось создать или найти чат');
     }
+
+    final newChat = await chatCollection.add({
+      'users': [currentUserEmail, otherUserEmail],
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+
+    return newChat.id;
   }
 }
