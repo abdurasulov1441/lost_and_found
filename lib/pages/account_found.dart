@@ -3,15 +3,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-class FoundItemsPage extends StatelessWidget {
+class FoundItemsPage extends StatefulWidget {
   const FoundItemsPage({super.key});
 
+  @override
+  _FoundItemsPageState createState() => _FoundItemsPageState();
+}
+
+class _FoundItemsPageState extends State<FoundItemsPage> {
   Future<void> _deleteItem(String documentId) async {
     try {
       await FirebaseFirestore.instance
           .collection('found')
           .doc(documentId)
           .delete();
+
+      if (!mounted) return; // Проверяем, что виджет ещё активен
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('E’lon muvaffaqiyatli o‘chirildi')),
+      );
     } catch (e) {
       debugPrint('Failed to delete item: $e');
     }
@@ -70,6 +80,11 @@ class FoundItemsPage extends StatelessWidget {
       }));
     }
 
+    // Проверяем наличие полей reward и address
+    final Map<String, dynamic> data = item.data() as Map<String, dynamic>;
+    final reward = data.containsKey('reward') ? data['reward'] : 'N/A';
+    final address = data.containsKey('address') ? data['address'] : 'N/A';
+
     return Card(
       margin: const EdgeInsets.all(10),
       shape: RoundedRectangleBorder(
@@ -122,9 +137,9 @@ class FoundItemsPage extends StatelessWidget {
                 ),
                 const SizedBox(height: 8),
                 _buildDetailRow(Icons.category, 'Kategoriya', item['category']),
-                _buildDetailRow(Icons.money_rounded, 'Mukofot', item['reward']),
+                _buildDetailRow(Icons.money_rounded, 'Mukofot', reward),
                 _buildDetailRow(Icons.location_on, 'Joylashuv', item['region']),
-                _buildDetailRow(Icons.home, 'Manzil', item['address']),
+                _buildDetailRow(Icons.home, 'Manzil', address),
                 _buildDetailRow(Icons.calendar_today, 'Sana', item['date']),
                 const SizedBox(height: 16),
                 ElevatedButton(
@@ -149,11 +164,8 @@ class FoundItemsPage extends StatelessWidget {
                     );
 
                     if (confirmation == true) {
+                      if (!mounted) return;
                       await _deleteItem(item.id);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(
-                            content: Text('E’lon muvaffaqiyatli o‘chirildi')),
-                      );
                     }
                   },
                   style: ElevatedButton.styleFrom(

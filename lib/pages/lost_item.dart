@@ -243,6 +243,9 @@ class _LostItemState extends State<LostItem> {
         }
       }));
     }
+    final Map<String, dynamic> data = item.data() as Map<String, dynamic>;
+    final reward = data.containsKey('reward') ? data['reward'] : 'N/A';
+    final price = data.containsKey('price') ? data['price'] : 'N/A';
 
     return Card(
       color: isOwnListing ? Colors.green.shade100 : Colors.white,
@@ -256,8 +259,7 @@ class _LostItemState extends State<LostItem> {
         children: [
           if (images.isNotEmpty)
             SizedBox(
-              height:
-                  200, // Задаем фиксированную высоту для области отображения
+              height: 200,
               width: double.infinity,
               child: PageView.builder(
                 itemCount: images.length,
@@ -269,7 +271,7 @@ class _LostItemState extends State<LostItem> {
                     ),
                     child: Image.network(
                       imageUrl,
-                      fit: BoxFit.contain, // Изменяем на BoxFit.contain
+                      fit: BoxFit.contain,
                       width: double.infinity,
                       errorBuilder: (context, error, stackTrace) {
                         return Container(
@@ -318,7 +320,18 @@ class _LostItemState extends State<LostItem> {
                         size: 16, color: Colors.grey),
                     const SizedBox(width: 5),
                     Text(
-                      'Narxi: ${item['reward'] ?? 'N/A'}',
+                      'Mukofot: $reward',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 5),
+                Row(
+                  children: [
+                    const Icon(Icons.money, size: 16, color: Colors.grey),
+                    const SizedBox(width: 5),
+                    Text(
+                      'Narx: $price',
                       style: const TextStyle(fontSize: 14, color: Colors.grey),
                     ),
                   ],
